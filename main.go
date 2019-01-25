@@ -539,7 +539,7 @@ func _map(chOpLog chan *opLog, chRet chan *opLog) {
 			}
 			if nextLog.op == opAdd {
 				wg.Add(1)
-				transform(buf, chRet, &wg)
+				go transform(buf, chRet, &wg)
 				buf = nil
 			}
 		}
@@ -548,13 +548,15 @@ func _map(chOpLog chan *opLog, chRet chan *opLog) {
 	wg.Add(1)
 	if buf != nil {
 		transform(buf, chRet, &wg)
-		close(chRet)
 	}
 
 	wg.Wait()
+	close(chRet)
 
 }
 
+
+// recreate the user set
 func recreate(ch chan *opLog, us *userSet) {
 
 	m := map[int64]*opLog{}
@@ -576,6 +578,8 @@ func recreate(ch chan *opLog, us *userSet) {
 			opNo = v.opNo
 		}
 
+
+		// save the newest operation log
 		if val, ok := m[uid]; !ok {
 			m[uid] = log
 
@@ -597,15 +601,11 @@ func recreate(ch chan *opLog, us *userSet) {
 
 	}
 
+	// recreate with the newest operation, if it's 'delete', skip it
 	for k, v := range m {
 		if v.op == opDelete {
 			delete(m, k)
-		}
-	}
-
-	for k, v := range m {
-		if v.op == opDelete {
-			delete(m, k)
+			continue
 		}
 
 		ur := v.data.(*addLog)
@@ -775,3 +775,6 @@ func _main(round int) {
 	//us.print()
 
 }
+
+
+
